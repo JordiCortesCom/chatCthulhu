@@ -1,6 +1,6 @@
 import gradio as gr
 
-from backend import process_audio
+from backend import process_audio, read_answer
 
 
 # --- CSS LOVecraftià / SÈPIA ---
@@ -104,21 +104,22 @@ with gr.Blocks(css=custom_css, theme=gr.themes.Soft()) as demo:
 
             response_box   = gr.Textbox(label="Resposta", interactive=False, lines=6)
 
+            audio_out = gr.Audio(
+                label="Resposta d'àudio",
+                type="filepath",
+                autoplay=True
+            )
+
             send_btn.click(
                 fn=process_audio,
                 inputs=audio_in,
                 outputs=[transcript_box, response_box],
             )
-"""
-            read_btn = gr.Button("Escolta la resposta")
-
-
-            read_btn.click(
+            response_box.change(
                 fn=read_answer,
                 inputs=response_box,
                 outputs=audio_out,
             )
-"""            
 
     
 if __name__ == "__main__":

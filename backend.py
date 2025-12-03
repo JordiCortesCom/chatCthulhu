@@ -1,5 +1,5 @@
 import os
-from typing import Tuple
+from typing import Optional, Tuple
 
 from openai import OpenAI
 
@@ -11,6 +11,9 @@ FALLBACK_API_KEY = (
 )
 MODEL_CHAT = "gpt-4.1-mini"
 MODEL_STT = "whisper-1"
+MODEL_TTS = "tts-1"
+TTS_VOICE = "alloy"
+TTS_OUTPUT_PATH = "response.wav"
 
 
 def _load_system_prompt() -> str:
@@ -82,3 +85,23 @@ def callChatModel(transcript_text: str) -> Tuple[str, str]:
     )
     answer = completion.choices[0].message.content
     return transcript_text, answer
+
+
+def read_answer(answer_text: str) -> Optional[str]:
+    """
+    Genera un fitxer d'àudio amb la resposta del model.
+    """
+    if not answer_text:
+        return None
+
+    synthesis = client.audio.speech.create(
+        model=MODEL_TTS,
+        voice=TTS_VOICE,
+        response_format="wav",
+        input=answer_text,
+    )
+
+    with open(TTS_OUTPUT_PATH, "wb") as out_file:
+        out_file.write(synthesis.read())
+
+    return TTS_OUTPUT_PATH
