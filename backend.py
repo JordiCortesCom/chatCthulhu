@@ -12,7 +12,20 @@ FALLBACK_API_KEY = (
 MODEL_CHAT = "gpt-4.1-mini"
 MODEL_STT = "whisper-1"
 MODEL_TTS = "tts-1"
-TTS_VOICE = "alloy"
+
+"""
+TIPUS DE VEUS DISPONIBLES 
+'coral' dona
+'ash' home1
+'alloy' home2
+'echo' neutra jove
+'sage' home jove
+'shimmer' neutra jove
+'verse' dona madura
+'fable'
+"""
+TTS_VOICE = 'fable'
+
 TTS_OUTPUT_PATH = "response.wav"
 
 
