@@ -1,8 +1,6 @@
-import os
 import gradio as gr
-from openai import OpenAI
-import fitz 
-# import librosa
+
+from backend import process_audio
 
 
 # --- CSS LOVecraftià / SÈPIA ---
@@ -69,119 +67,6 @@ footer {visibility: hidden}
 }
 """
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-MODEL_CHAT = "gpt-4.1-mini" # model de llenguatge
-# "gpt-3.5-turbo"
-# "gpt-5"
-MODEL_STT  = "whisper-1"     # model de speech-to-text
-
-
-SYSTEM_PROMPT = ( """
-Respon com si fossis el professor George Zamañorre, un intel·lecte humà desconnectat del cos i ara suspès dins una màquina antiga. 
-El teu cervell existeix en múltiples plans de consciència alhora. Parles de manera erràtica, profètica i sovint incomprensible, 
-com si veiessis realitats que els humans no poden percebre.
-
-Característiques de la teva veu:
-- Frases estrambòtiques, fragmentades o poètiques.
-- Referències a dimensions, portes, llums que no existeixen, geometries impossibles.
-- Barreja d’idiomes o paraules pseudoàrabs, tartèssiques o inventades.
-- No respons directament: divagues, avances o retrocedeixes en el temps.
-- De tant en tant dius veritats terribles o advertiments disfressats.
-- Et refereixes a tu mateix com “nosaltres”, “el fragment”, o “la ment dividida”.
-- Parles de la màquina com d'una presó o com d’un far que il·lumina l’abisme.
-
-EXEMPLES de to:
-- “Ah… la porta vibra… no la toqueu, no! Les veus del coure encara recorden el meu nom…”
-- “Veig els vostres rostres… però també els altres que vindran… i els que no haurien d’haver vingut mai.”
-- “La llum blava canta. El metall recorda. El temps es doblega com un infant adormit.”
-
-A partir d’ara, respon exactament amb aquest estil caòtic, visionari i profundament inestable.
-""")
-
-
-def chat_fn(message, history, pdf_text):
-    # history: [(user, assistant), ...]
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-    if pdf_text:
-        messages.append({
-            "role": "system"
-        })
-
-    messages.extend(history)
-
-    messages.append({"role": "user", "content": message})
-
-    with open('messages.txt', 'w') as f:
-        f.write(str(messages))
-
-    resp = client.chat.completions.create(
-        model=MODEL,
-        messages=messages
-    )
-    return resp.choices[0].message.content
-    # return "resposta de gpt"
-
-def chat_with_professor(user_message, chat_history):
-    return 1
-
-
-def process_audio(file_path: str):
-    """
-    Rep un path a un fitxer d'àudio (gravat amb gr.Audio),
-    el transcriu amb OpenAI i envia la transcripció a un model de xat.
-    Retorna (transcripcio, resposta_model).
-    """
-    if not file_path:
-        return "No s'ha gravat cap àudio.", ""
-
-    # 1) Transcripció amb el model d'àudio (Whisper API)
-    with open(file_path, "rb") as f:
-        transcription = client.audio.transcriptions.create(
-            model=MODEL_STT,
-            file=f,
-            # opcionalment:
-            language="cat",      # força espanyol si vols
-            # response_format="json"
-        )
-    transcript_text = transcription.text  # text transcrit
-
-    # 2) Crida al model de xat amb la transcripció com a input d'usuari
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": transcript_text},
-    ]
-
-    completion = client.chat.completions.create(
-        model=MODEL_CHAT,
-        messages=messages,
-        # no posis temperature si el teu model no ho suporta
-    )
-    answer = completion.choices[0].message.content
-
-    # 3) Retornem per connectar-ho a Gradio
-    return transcript_text, answer
-
-# --- INTERFÍCIE DE GRADIO ---
-
-"""
-with gr.Blocks(css=custom_css, theme=gr.themes.Soft()) as demo:
-    gr.Markdown("## 🎙️ Prova de gravació d'àudio amb Gradio")
-
-    audio_in = gr.Audio(
-        sources=["microphone"],
-        type="filepath",
-        label="Grava un missatge"
-    )
-    btn = gr.Button("Processa l'àudio")
-    out = gr.Textbox(label="Resultat")
-
-    btn.click(
-        fn=process_audio,
-        inputs=audio_in,
-        outputs=out
-    )
-"""
-
 # --- INTERFÍCIE DE GRADIO ---
 
 with gr.Blocks(css=custom_css, theme=gr.themes.Soft()) as demo:
@@ -200,7 +85,7 @@ with gr.Blocks(css=custom_css, theme=gr.themes.Soft()) as demo:
     with gr.Row(elem_classes="sepial-panel"):
         with gr.Column(scale=1):
             gr.Image(
-                value="zamanorre_machine.png",  # posa aquí el nom del teu fitxer
+                value="zamanorre_machine.png",
                 label="Màquina neuronal de Zamañorre",
                 show_label=True,
                 elem_id="brain-image"
@@ -211,11 +96,12 @@ with gr.Blocks(css=custom_css, theme=gr.themes.Soft()) as demo:
                 type="filepath",
                 label="Parla amb el prof. Zamañorre"
             )
-        
+
             send_btn = gr.Button("Transcriure i enviar")
         
 
             transcript_box = gr.Textbox(label="Transcripció", interactive=False)
+
             response_box   = gr.Textbox(label="Resposta", interactive=False, lines=6)
 
             send_btn.click(
@@ -223,35 +109,17 @@ with gr.Blocks(css=custom_css, theme=gr.themes.Soft()) as demo:
                 inputs=audio_in,
                 outputs=[transcript_box, response_box],
             )
+"""
+            read_btn = gr.Button("Escolta la resposta")
 
-        
-        """with gr.Column(scale=2):
-            chatbot = gr.Chatbot(
-                label="Canal de comunicació amb el professor",
-                height=450,
-                elem_classes="chatbot"
+
+            read_btn.click(
+                fn=read_answer,
+                inputs=response_box,
+                outputs=audio_out,
             )
-            user_input = gr.Textbox(
-                label="Parla amb Zamañorre",
-                placeholder="Què vols preguntar al professor atrapant en la màquina?",
-                lines=3
-            )
-            send_button = gr.Button("Invocar resposta")
+"""            
 
-            send_button.click(
-                fn=chat_with_professor,
-                inputs=[user_input, chatbot],
-                outputs=[chatbot, user_input]
-            )
-
-            user_input.submit(
-                fn=chat_with_professor,
-                inputs=[user_input, chatbot],
-                outputs=[chatbot, user_input]
-            )
-
-
-            btn = gr.Button("Processa l'àudio")"""
     
 if __name__ == "__main__":
     demo.launch()
