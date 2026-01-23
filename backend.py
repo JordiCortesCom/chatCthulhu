@@ -31,6 +31,9 @@ TTS_OUTPUT_PATH = "response.wav"
 
 CHAT_LOG_PATH = "chat.log"
 
+# Base directory for input audio files. All user-specified paths must resolve inside this directory.
+AUDIO_INPUT_DIR = os.path.join(os.path.dirname(__file__), "audio_uploads")
+
 class Sender(Enum):
     USER = "User"
     PROF = "Prof. Zamañorre"
@@ -89,7 +92,16 @@ def callWhisperModel(file_path: str) -> str:
     Rep un path a un fitxer d'àudio i crida al model de transcripció.
     Retorna el text transcrit.
     """
-    with open(file_path, "rb") as audio_file:
+    # Normalize and validate the provided path to ensure it stays within AUDIO_INPUT_DIR
+    normalized_path = os.path.normpath(os.path.join(AUDIO_INPUT_DIR, file_path))
+    base_dir = os.path.abspath(AUDIO_INPUT_DIR)
+    target_path = os.path.abspath(normalized_path)
+
+    # Reject absolute paths or paths that escape the base directory
+    if os.path.isabs(file_path) or not target_path.startswith(base_dir + os.sep):
+        raise ValueError("Invalid audio file path.")
+
+    with open(target_path, "rb") as audio_file:
         transcription = client.audio.transcriptions.create(
             model=MODEL_STT,
             file=audio_file,
